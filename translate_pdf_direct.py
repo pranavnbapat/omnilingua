@@ -107,23 +107,6 @@ def _pick_font(font_name: str) -> str:
     return "helv"
 
 
-def _sample_bg_color(page: fitz.Page, rect: fitz.Rect) -> Tuple[float, float, float]:
-    clip = fitz.Rect(rect)
-    if clip.width < 1 or clip.height < 1:
-        return (1.0, 1.0, 1.0)
-    pix = page.get_pixmap(clip=clip, alpha=False, matrix=fitz.Matrix(1, 1))
-    data = pix.samples
-    if not data:
-        return (1.0, 1.0, 1.0)
-    r = g = b = 0
-    n = len(data) // 3
-    for i in range(0, len(data), 3):
-        r += data[i]
-        g += data[i + 1]
-        b += data[i + 2]
-    return (r / (n * 255.0), g / (n * 255.0), b / (n * 255.0))
-
-
 def _fit_and_write_line(page: fitz.Page, line: PDFTextLine, translated: str) -> bool:
     rect = fitz.Rect(*line.bbox)
     if rect.width < 3 or rect.height < 3:
@@ -137,14 +120,13 @@ def _fit_and_write_line(page: fitz.Page, line: PDFTextLine, translated: str) -> 
     min_h = max(rect.height, line.font_size * 1.35)
     rect = fitz.Rect(rect.x0, rect.y0, rect.x1, rect.y0 + min_h)
 
-    # Clear dark text lines to white. For light text (e.g. white on blue bars),
-    # repaint with sampled background color to remove source text without artifacts.
-    lum = 0.2126 * line.color_rgb[0] + 0.7152 * line.color_rgb[1] + 0.0722 * line.color_rgb[2]
-    if lum < 0.70:
-        page.draw_rect(rect, color=None, fill=(1, 1, 1), overlay=True)
-    else:
-        bg = _sample_bg_color(page, rect)
-        page.draw_rect(rect, color=None, fill=bg, overlay=True)
+    # Remove source text in this line box while preserving images / line art / background.
+    page.add_redact_annot(rect, fill=None)
+    page.apply_redactions(
+        images=getattr(fitz, "PDF_REDACT_IMAGE_NONE", 0),
+        graphics=getattr(fitz, "PDF_REDACT_LINE_ART_NONE", 0),
+        text=getattr(fitz, "PDF_REDACT_TEXT_REMOVE", 0),
+    )
 
     fontname = _pick_font(line.font_name)
     size = max(6.5, min(line.font_size, 28.0))
