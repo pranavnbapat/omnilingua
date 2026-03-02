@@ -5,12 +5,12 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from convert_pdf_to_html import convert_pdf_to_html
-from replace_html_text import load_mapping, replace_text_nodes
-from render_html_to_pdf import render_html_to_pdf
-from pdf_page_size import get_first_page_size
-from translator_llm import translate_html_content
-from translate_pdf_direct import translate_pdf_direct
+from app.pipeline.convert_pdf_to_html import convert_pdf_to_html
+from app.pipeline.replace_html_text import load_mapping, replace_text_nodes
+from app.pipeline.render_html_to_pdf import render_html_to_pdf
+from app.pipeline.pdf_page_size import get_first_page_size
+from app.pipeline.translator_llm import translate_html_content
+from app.pipeline.translate_pdf_direct import translate_pdf_direct
 
 
 def resolve_pdf_out_path(

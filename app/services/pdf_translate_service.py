@@ -9,12 +9,12 @@ from typing import Literal, Optional
 
 from fastapi import HTTPException, UploadFile
 
-from convert_pdf_to_html import convert_pdf_to_html
-from pdf_page_size import get_first_page_size
-from render_html_to_pdf import render_html_to_pdf
-from replace_html_text import replace_text_nodes
-from translate_pdf_direct import translate_pdf_direct
-from translator_llm import translate_html_content
+from app.pipeline.convert_pdf_to_html import convert_pdf_to_html
+from app.pipeline.pdf_page_size import get_first_page_size
+from app.pipeline.render_html_to_pdf import render_html_to_pdf
+from app.pipeline.replace_html_text import replace_text_nodes
+from app.pipeline.translate_pdf_direct import translate_pdf_direct
+from app.pipeline.translator_llm import translate_html_content
 
 
 LayoutEngine = Literal["html", "direct"]
@@ -132,4 +132,3 @@ async def run_translation(
         raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Translation pipeline failed: {exc}") from exc
-

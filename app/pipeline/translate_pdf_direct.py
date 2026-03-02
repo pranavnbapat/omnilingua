@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Tuple
 
 import fitz  # PyMuPDF
 
-from translator_llm import LLMTranslator, should_retry_translation
+from app.pipeline.translator_llm import LLMTranslator, should_retry_translation
 
 
 @dataclass

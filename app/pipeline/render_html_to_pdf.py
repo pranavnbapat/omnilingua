@@ -9,7 +9,7 @@ from typing import Any
 
 from playwright.async_api import async_playwright
 
-from pdf_page_size import PageSize
+from app.pipeline.pdf_page_size import PageSize
 
 
 def pt_to_in(pt: float) -> float:

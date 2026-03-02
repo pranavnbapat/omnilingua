@@ -159,18 +159,9 @@ Scale factor: 0.667 (content * scale = PDF dimensions)
 
 ---
 
-### 7. HTML Normalization (`normalise_html_for_print.py`)
+### 7. Direct PDF Translation (`translate_pdf_direct.py`)
 
-**Status:** Currently unused by CLI.
-
-Provides CSS injection to force A4 page size and remove default margins. Would be useful for standardizing output but conflicts with the goal of preserving original PDF dimensions.
-
----
-
-### 8. Placeholder Files
-
-- `postprocess_pdf.py`: Empty — reserved for future PDF post-processing (e.g., metadata, compression)
-- `replace_text_nodes.py`: Empty — possibly an incomplete refactoring remnant
+Direct mode rewrites text lines on the original PDF coordinates (without `pdftohtml`), preserving page visuals more robustly for many documents.
 
 ---
 
@@ -191,7 +182,7 @@ Input PDF
     └──[Playwright/Chromium + PageSize]──> Output PDF
 ```
 
-### With LLM Translation:
+### With LLM Translation (HTML Engine):
 ```
 Input PDF
     │
@@ -209,6 +200,19 @@ Input PDF
     │       └──[Replace Text Nodes]──> Translated HTML (ALL structure preserved)
     │
     └──[Playwright/Chromium + PageSize]──> Output PDF
+```
+
+### With LLM Translation (Direct Engine):
+```
+Input PDF
+    │
+    ├──[PyMuPDF extract lines + bbox]──> Line records
+    │
+    ├──[LLM translate per line]──> Translated lines
+    │
+    ├──[Text-only redaction on original bbox]──> Remove source glyphs
+    │
+    └──[PyMuPDF insert_textbox]──> Output PDF (original layout preserved)
 ```
 
 ---
@@ -322,8 +326,8 @@ The LLM translator uses **text-node level translation** - the most granular appr
 ## Known Limitations & Issues
 
 ### 1. Page Size Handling
-The `render_html_to_pdf.py` module sets both:
-- `prefer_css_page_size=True`
+The `render_html_to_pdf.py` module sets:
+- `prefer_css_page_size=False`
 - Explicit `width`/`height` parameters
 
 If the HTML contains `@page` CSS rules, Chromium may prioritize them over the explicit dimensions, causing page size mismatch.
@@ -350,7 +354,7 @@ Only extracts dimensions from the first page — multi-page PDFs with varying pa
 |---------|-------------|
 | Element-ID-based replacement | Replace by `id` or coordinates instead of text matching |
 | Multi-page size support | Handle varying page dimensions within a single PDF |
-| Post-processing | Add `postprocess_pdf.py` for metadata preservation, PDF/A compliance |
+| Post-processing | Add dedicated PDF post-processing module for metadata preservation, PDF/A compliance |
 | Font embedding | Ensure fonts are embedded or substituted correctly |
 | Batch processing | Process multiple PDFs in parallel |
 | OCR integration | Handle scanned/image-based PDFs |
@@ -365,11 +369,10 @@ doc_generator/
 ├── convert_pdf_to_html.py      # PDF → HTML (Poppler)
 ├── replace_html_text.py        # HTML text modification via JSON (BeautifulSoup)
 ├── translator_llm.py           # HTML translation via LLM (NEW)
+├── translate_pdf_direct.py     # Direct PDF line translation (PyMuPDF + LLM)
 ├── render_html_to_pdf.py       # HTML → PDF (Playwright)
 ├── pdf_page_size.py            # PDF dimension extraction (PyMuPDF)
-├── normalise_html_for_print.py # CSS injection utilities (unused)
-├── postprocess_pdf.py          # Placeholder for PDF post-processing
-├── replace_text_nodes.py       # Placeholder/unfinished
+├── app/                        # Modular FastAPI application (entrypoint: app.main:app)
 ├── requirements.txt            # Python dependencies
 ├── .env                        # Environment configuration (not committed)
 ├── .gitignore                  # Git ignore rules
