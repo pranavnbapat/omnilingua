@@ -13,6 +13,28 @@ from translator_llm import translate_html_content
 from translate_pdf_direct import translate_pdf_direct
 
 
+def resolve_pdf_out_path(
+    pdf_out_arg: str,
+    pdf_in: Path,
+    target_lang: str | None,
+    mapping_json: str | None,
+) -> Path:
+    """
+    Resolve --pdf-out as either:
+    - explicit PDF filepath, or
+    - output directory (auto-name based on input + suffix).
+    """
+    raw = Path(pdf_out_arg).expanduser()
+    out_path = raw.resolve()
+
+    is_dir_like = raw.as_posix().endswith("/") or out_path.is_dir() or out_path.suffix.lower() != ".pdf"
+    if not is_dir_like:
+        return out_path
+
+    suffix = target_lang if target_lang else ("mapped" if mapping_json else "out")
+    return out_path / f"{pdf_in.stem}_{suffix}.pdf"
+
+
 def main() -> int:
     """
     End-to-end PDF translator with LLM support.
@@ -39,7 +61,11 @@ def main() -> int:
     ap.add_argument("--source-lang", required=False, default=None,
                     help="Source language code (e.g., 'en', 'es'). Auto-detected if not provided.",
     )
-    ap.add_argument("--pdf-out", required=True, help="Output PDF path.")
+    ap.add_argument(
+        "--pdf-out",
+        required=True,
+        help="Output PDF file path, or output directory (auto-names as <input_stem>_<target_lang>.pdf).",
+    )
     ap.add_argument("--save-html", action="store_true",
                     help="Also save intermediate HTML files to the output directory.")
     ap.add_argument(
@@ -52,7 +78,12 @@ def main() -> int:
 
     pdf_in = Path(args.pdf_in).expanduser().resolve()
     workdir = Path(args.workdir).expanduser().resolve()
-    pdf_out = Path(args.pdf_out).expanduser().resolve()
+    pdf_out = resolve_pdf_out_path(
+        args.pdf_out,
+        pdf_in=pdf_in,
+        target_lang=args.target_lang,
+        mapping_json=args.mapping_json,
+    )
 
     if not pdf_in.exists():
         raise FileNotFoundError(f"Input PDF not found: {pdf_in}")

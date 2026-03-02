@@ -32,6 +32,14 @@ class DirectTranslationStats:
     source_lang: str
 
 
+_UNICODE_FONT_CANDIDATES = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSansGreek-Regular.ttf",
+]
+_WARNED_MISSING_UNICODE_FONT = False
+
+
 def _is_translatable_text(text: str) -> bool:
     stripped = text.strip()
     if len(stripped) < 2:
@@ -107,6 +115,30 @@ def _pick_font(font_name: str) -> str:
     return "helv"
 
 
+def _needs_unicode_font(text: str) -> bool:
+    # Greek + Coptic, Cyrillic, Arabic, Hebrew, CJK, etc.
+    for ch in text:
+        cp = ord(ch)
+        if (
+            0x0370 <= cp <= 0x03FF
+            or 0x0400 <= cp <= 0x04FF
+            or 0x0590 <= cp <= 0x05FF
+            or 0x0600 <= cp <= 0x06FF
+            or 0x4E00 <= cp <= 0x9FFF
+            or 0x3040 <= cp <= 0x30FF
+            or 0xAC00 <= cp <= 0xD7AF
+        ):
+            return True
+    return False
+
+
+def _resolve_unicode_font_file() -> Optional[str]:
+    for p in _UNICODE_FONT_CANDIDATES:
+        if Path(p).exists():
+            return p
+    return None
+
+
 def _fit_and_write_line(page: fitz.Page, line: PDFTextLine, translated: str) -> bool:
     rect = fitz.Rect(*line.bbox)
     if rect.width < 3 or rect.height < 3:
@@ -129,6 +161,17 @@ def _fit_and_write_line(page: fitz.Page, line: PDFTextLine, translated: str) -> 
     )
 
     fontname = _pick_font(line.font_name)
+    fontfile = None
+    if _needs_unicode_font(text):
+        global _WARNED_MISSING_UNICODE_FONT
+        fontfile = _resolve_unicode_font_file()
+        if fontfile:
+            # Register per-page font alias so insert_textbox can use it.
+            fontname = "unicode_fallback"
+            page.insert_font(fontname=fontname, fontfile=fontfile)
+        elif not _WARNED_MISSING_UNICODE_FONT:
+            print("Warning: No Unicode font found. Non-Latin scripts may render as '?'.")
+            _WARNED_MISSING_UNICODE_FONT = True
     size = max(6.5, min(line.font_size, 28.0))
 
     for _ in range(10):
@@ -136,6 +179,7 @@ def _fit_and_write_line(page: fitz.Page, line: PDFTextLine, translated: str) -> 
             rect,
             text,
             fontname=fontname,
+            fontfile=fontfile,
             fontsize=size,
             color=line.color_rgb,
             align=fitz.TEXT_ALIGN_LEFT,
@@ -152,6 +196,7 @@ def _fit_and_write_line(page: fitz.Page, line: PDFTextLine, translated: str) -> 
         rect,
         clipped,
         fontname=fontname,
+        fontfile=fontfile,
         fontsize=max(6.0, size),
         color=line.color_rgb,
         align=fitz.TEXT_ALIGN_LEFT,
