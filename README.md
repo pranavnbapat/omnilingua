@@ -57,6 +57,8 @@ VLLM_MODEL=
 DEFAULT_NUM_PREDICT=
 COMBINE_NUM_PREDICT=
 PER_REQUEST_TIMEOUT=
+BASIC_AUTH_USERNAME=
+BASIC_AUTH_PASSWORD=
 ```
 
 ## CLI Usage
@@ -120,13 +122,20 @@ uvicorn app.main:app --host 0.0.0.0 --port 9000 --reload
 Health:
 
 ```bash
-curl http://localhost:9000/health
+curl -u "$BASIC_AUTH_USERNAME:$BASIC_AUTH_PASSWORD" http://localhost:9000/health
+```
+
+Docs:
+
+```bash
+curl -u "$BASIC_AUTH_USERNAME:$BASIC_AUTH_PASSWORD" http://localhost:9000/docs
 ```
 
 Translate PDF (`direct`):
 
 ```bash
 curl -X POST "http://localhost:9000/translate/pdf" \
+  -u "$BASIC_AUTH_USERNAME:$BASIC_AUTH_PASSWORD" \
   -F "file=@input/document.pdf" \
   -F "target_lang=es" \
   -F "layout_engine=direct" \
@@ -137,6 +146,7 @@ Translate PDF (`html`):
 
 ```bash
 curl -X POST "http://localhost:9000/translate/pdf" \
+  -u "$BASIC_AUTH_USERNAME:$BASIC_AUTH_PASSWORD" \
   -F "file=@input/document.pdf" \
   -F "target_lang=es" \
   -F "layout_engine=html" \
@@ -161,7 +171,7 @@ docker compose up --build
 Then call:
 
 ```bash
-curl http://localhost:9000/health
+curl -u "$BASIC_AUTH_USERNAME:$BASIC_AUTH_PASSWORD" http://localhost:9000/health
 ```
 
 Push (if `docker-compose.yml` has service `omnilingua` with an `image:` tag):
