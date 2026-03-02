@@ -2,13 +2,13 @@
 
 Translate born-digital PDFs while preserving layout as much as possible.
 
-The project supports two engines:
-- `html`: `PDF -> HTML -> translate -> PDF`
-- `direct`: direct PDF line rewrite with coordinate-preserving replacement
+This project supports two engines:
+- `html`: `PDF -> HTML -> translate/replace -> PDF`
+- `direct`: direct PDF line translation + rewrite on original PDF coordinates
 
 ## Features
 
-- CLI workflow for PDF translation and JSON text replacement
+- CLI workflow for translation and JSON mapping replacement
 - FastAPI endpoint for upload + translated PDF download
 - Auto language detection (or manual `--source-lang`)
 - Output auto-naming with language suffix when output is a directory
@@ -17,11 +17,11 @@ The project supports two engines:
 ## Requirements
 
 - Python 3.10+
-- Poppler (`pdftohtml`, `pdftotext`, `pdfinfo`)
-- Playwright Chromium (for `html` engine)
-- LLM endpoint (OpenAI-compatible API)
+- Poppler tools (`pdftohtml`, `pdftotext`, `pdfinfo`) for `html` engine
+- Playwright Chromium for `html` engine
+- OpenAI-compatible LLM endpoint
 
-Install system dependencies (Ubuntu/Debian example):
+Install system deps (Ubuntu/Debian):
 
 ```bash
 sudo apt-get update
@@ -42,18 +42,21 @@ playwright install chromium
 
 ## Environment
 
-Create `.env`:
+Copy sample and fill values:
 
 ```bash
-LLM_API_URL=http://localhost:8000/v1
-LLM_API_KEY=your-key
-LLM_MODEL=qwen3-30b-a3b-awq
+cp .env.sample .env
+```
 
-# Optional
-LLM_MAX_TOKENS=8192
-LLM_TEMPERATURE=0.1
-LLM_BATCH_SIZE=50
-PER_REQUEST_TIMEOUT=600
+Required keys:
+
+```bash
+RUNPOD_VLLM_HOST=
+VLLM_API_KEY=
+VLLM_MODEL=
+DEFAULT_NUM_PREDICT=
+COMBINE_NUM_PREDICT=
+PER_REQUEST_TIMEOUT=
 ```
 
 ## CLI Usage
@@ -68,9 +71,6 @@ python cli.py \
   --layout-engine direct \
   --pdf-out output/
 ```
-
-If `--pdf-out` is a directory, output name is auto-generated as:
-- `<input_stem>_<target_lang>.pdf` (example: `_es`)
 
 ### 2) HTML engine
 
@@ -103,24 +103,30 @@ python cli.py \
 }
 ```
 
+### Output naming behavior
+
+If `--pdf-out` is a directory, output is auto-named as:
+- `<input_stem>_<target_lang>.pdf` (translation)
+- `<input_stem>_mapped.pdf` (mapping mode)
+
 ## FastAPI Usage
 
 Run server:
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 9000 --reload
 ```
 
 Health:
 
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:9000/health
 ```
 
 Translate PDF (`direct`):
 
 ```bash
-curl -X POST "http://localhost:8000/translate/pdf" \
+curl -X POST "http://localhost:9000/translate/pdf" \
   -F "file=@input/document.pdf" \
   -F "target_lang=es" \
   -F "layout_engine=direct" \
@@ -130,11 +136,39 @@ curl -X POST "http://localhost:8000/translate/pdf" \
 Translate PDF (`html`):
 
 ```bash
-curl -X POST "http://localhost:8000/translate/pdf" \
+curl -X POST "http://localhost:9000/translate/pdf" \
   -F "file=@input/document.pdf" \
   -F "target_lang=es" \
   -F "layout_engine=html" \
   -o output/document_es_html.pdf
+```
+
+## Docker
+
+Build and run with Docker:
+
+```bash
+docker build -t omnilingua .
+docker run --rm -p 9000:9000 --env-file .env omnilingua
+```
+
+Build and run with Compose:
+
+```bash
+docker compose up --build
+```
+
+Then call:
+
+```bash
+curl http://localhost:9000/health
+```
+
+Push (if `docker-compose.yml` has service `omnilingua` with an `image:` tag):
+
+```bash
+docker compose build omnilingua
+docker compose push omnilingua
 ```
 
 ## Project Structure
@@ -159,12 +193,12 @@ doc_generator/
 ├── cli.py
 ├── requirements.txt
 ├── ARCHITECTURE.md
+├── .env.sample
 └── README.md
 ```
 
 ## Notes
 
-- `direct` engine is best for many layout-heavy documents, but some documents may still need tuning.
-- For non-Latin scripts (Greek/Cyrillic/etc.), Unicode font fallback is used in direct mode.
+- `direct` engine is usually better for complex layouts.
+- `html` engine can be useful when preserving HTML intermediates is important.
 - `work/` and `output/` are generated artifacts and should not be committed.
-
